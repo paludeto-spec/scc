@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Clínico OSCE - Enfermagem Urológica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 1);
+        }
+
+        /* Animações CGI do Avatar e Ambiente */
+        @keyframes breathe {
+            0%, 100% { transform: translateY(0px) scaleY(1); }
+            50% { transform: translateY(-3px) scaleY(1.012); }
+        }
+        @keyframes headIdle {
+            0%, 100% { transform: rotate(0deg) translateY(0px); }
+            33% { transform: rotate(0.6deg) translateY(-1px); }
+            66% { transform: rotate(-0.6deg) translateY(1px); }
+        }
+        @keyframes shakeHead {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            20% { transform: translateX(-6px) rotate(-2.5deg); }
+            40% { transform: translateX(6px) rotate(2.5deg); }
+            60% { transform: translateX(-5px) rotate(-1.5deg); }
+            80% { transform: translateX(4px) rotate(1.5deg); }
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        @keyframes ecgLine {
+            0% { stroke-dashoffset: 200; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes urineDrip {
+            0% { transform: translateY(0) scaleY(1); opacity: 0.9; }
+            80% { transform: translateY(28px) scaleY(1.3); opacity: 0.9; }
+            100% { transform: translateY(34px) scaleY(0.5); opacity: 0; }
+        }
+
+        .cgi-breathe {
+            animation: breathe 4.2s ease-in-out infinite;
+            transform-origin: center bottom;
+        }
+        .cgi-head-idle {
+            animation: headIdle 7s ease-in-out infinite;
+            transform-origin: 400px 260px;
+            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .cgi-head-nervoso {
+            animation: shakeHead 0.65s ease-in-out infinite !important;
+            transform-origin: 400px 260px;
+        }
+        .cgi-transition {
+            transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ecg-animate {
+            stroke-dasharray: 200;
+            animation: ecgLine 2.5s linear infinite;
+        }
+        .drip-animate {
+            animation: urineDrip 2.8s infinite ease-in;
+        }
+
+        /* Soundwave equalizer animation */
+        .sound-bar {
+            width: 3px;
+            background-color: #38bdf8;
+            border-radius: 999px;
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+    <!-- BARRA DE NAVEGAÇÃO E MEDIDORES PEDAGÓGICOS -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 sticky top-0 z-30">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Identificação do Simulador -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center shadow-lg shadow-cyan-500/20 border border-cyan-400/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">OSCE Virtual • Enfermagem</span>
+                        <span class="text-xs text-slate-400 hidden sm:inline">Estação: Manejo de CVD no Pré-Operatório</span>
+                    </div>
+                    <h1 class="text-sm sm:text-base font-bold text-white tracking-tight">Paciente Simulado: Pedro Costa Matias (78a)</h1>
+                </div>
+            </div>
+
+            <!-- Medidores Pedagógicos em Tempo Real -->
+            <div class="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800/90">
+                <!-- Vínculo Terapêutico -->
+                <div class="w-36 sm:w-44">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400 font-medium">Vínculo / Confiança</span>
+                        <span id="trustValue" class="font-bold text-emerald-400 mono">50%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="trustBar" class="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-500" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Nível de Ansiedade -->
+                <div class="w-36 sm:w-44">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400 font-medium">Ansiedade / Desconforto</span>
+                        <span id="anxietyValue" class="font-bold text-amber-400 mono">55%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="anxietyBar" class="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-500" style="width: 55%"></div>
+                    </div>
+                </div>
+
+                <!-- Badge de Estado Emocional -->
+                <div class="flex items-center gap-2 pl-2 border-l border-slate-800">
+                    <div class="text-right">
+                        <span class="block text-[10px] uppercase tracking-wider text-slate-400">Emoção do Ator</span>
+                        <span id="emotionBadge" class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                            Frustrado (Leve)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles de Voz e Debriefing -->
+            <div class="flex items-center gap-2.5">
+                <button id="btnToggleAudio" onclick="toggleAudio()" class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition">
+                    <svg id="iconAudioOn" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                    </svg>
+                    <span id="audioStatusText">Voz CGI: Ativa</span>
+                </button>
+
+                <button onclick="openFlowStudio()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 transition shadow-lg shadow-indigo-950/30">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <span>🎬 Estúdio Flow (<span id="flowLoadedCount">0/9</span>)</span>
+                </button>
+
+                <button onclick="openDebriefing()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-900/30 border border-emerald-400/30 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Encerrar & Debriefing</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL DO SIMULADOR (3 COLUNAS RESPONSIVAS) -->
+    <main class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+
+        <!-- COLUNA ESQUERDA: PRONTUÁRIO DO PACIENTE E INSPEÇÃO FÍSICA (3 Colunas no Desktop) -->
+        <aside class="lg:col-span-3 flex flex-col gap-4 order-2 lg:order-1">
+            
+            <!-- Card de Identificação e Prontuário -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Prontuário Eletrônico</h2>
+                    </div>
+                    <span class="text-[11px] mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Leito 304-B</span>
+                </div>
+
+                <!-- Dados Demográficos -->
+                <div class="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">NOME COMPLETO</span>
+                        <strong class="text-slate-100">Pedro Costa Matias</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">IDADE / SEXO</span>
+                        <strong class="text-slate-100">78 anos • Masc.</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">OCUPAÇÃO</span>
+                        <strong class="text-slate-200">Ex-caminhoneiro (Apos.)</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">ESTADO CIVIL / RELIGIÃO</span>
+                        <strong class="text-slate-200">Casado • Católico</strong>
+                    </div>
+                </div>
+
+                <!-- Contexto Clínico -->
+                <div class="space-y-2 text-xs">
+                    <div class="bg-blue-950/30 border border-blue-800/40 rounded-xl p-2.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-400 block mb-0.5">Contexto da Internação</span>
+                        <p class="text-slate-200 leading-relaxed">Internação eletiva para realização de <strong>Prostatectomia</strong>.</p>
+                    </div>
+
+                    <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 space-y-1.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block">Histórico Clínico (Resumo)</span>
+                        <p class="text-slate-300 leading-relaxed">
+                            Paciente em uso de <strong>Cateter Vesical de Demora (CVD) há 1 mês</strong>, inserido após episódio de retenção urinária aguda.
+                        </p>
+                        <p class="text-slate-300 leading-relaxed">
+                            O procedimento de inserção foi <strong>tecnicamente difícil e desconfortável</strong>, realizado pelo urologista com auxílio de <strong>uretroscopia</strong>.
+                        </p>
+                        <p class="text-slate-300 leading-relaxed">
+                            Relata uso contínuo de fralda devido a extravasamento urinário desde o início do cateter.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Exame Físico / Inspeção da Sonda -->
+                <div class="pt-1">
+                    <button onclick="inspectCatheter()" id="btnInspectCVD" class="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 text-cyan-300 border border-cyan-500/40 shadow-inner transition group">
+                        <svg class="w-4 h-4 text-cyan-400 group-hover:scale-110 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <span>Inspecionar Sonda (CVD) e Fralda</span>
+                    </button>
+
+                    <!-- Resultado da Inspeção Física (Oculto até clicar) -->
+                    <div id="inspectionResult" class="hidden mt-3 bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3 text-xs space-y-1.5 animate-fadeIn">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-emerald-400 uppercase text-[10px] tracking-wider">Achados do Exame Físico</span>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">Verificado</span>
+                        </div>
+                        <ul class="text-slate-200 space-y-1 list-disc list-inside leading-relaxed">
+                            <li><strong>Calibre do Cateter:</strong> Sonda Foley 2 vias de <strong>pequeno calibre (12 Fr)</strong>, escolhida pelo urologista devido à estenose/dificuldade na uretroscopia.</li>
+                            <li><strong>Permeabilidade:</strong> Sistema fechado pérvio, sem dobras. Urina amarelo-clara, límpida, sem grumos ou coágulos na bolsa (350 mL).</li>
+                            <li><strong>Meato Uretral / Fralda:</strong> Escape urinário pericateter (ao redor da sonda) associado ao calibre reduzido do cateter e contrações vesicais.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Objetivos Pedagógicos para o Estudante -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        Progresso da Consulta de Enfermagem
+                    </h3>
+                    <div class="space-y-2 text-xs" id="checklistPreview">
+                        <div id="chk-welcome" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">1</span>
+                            <span>Acolher queixa inicial do paciente</span>
+                        </div>
+                        <div id="chk-pain" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">2</span>
+                            <span>Investigar dor e sintomas urinários</span>
+                        </div>
+                        <div id="chk-onset" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">3</span>
+                            <span>Investigar início do vazamento</span>
+                        </div>
+                        <div id="chk-previnfo" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">4</span>
+                            <span>Checar se houve orientação prévia</span>
+                        </div>
+                        <div id="chk-explain" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">5</span>
+                            <span>Explicar relação calibre fino x vazamento</span>
+                        </div>
+                        <div id="chk-close" class="flex items-center gap-2 text-slate-400">
+                            <span class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">6</span>
+                            <span>Encerrar com acolhimento e educação</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+                    <strong class="text-slate-300">Dica Clínica:</strong> O Sr. Pedro não fornece espontaneamente detalhes técnicos. Investigue a queixa antes de propor condutas invasivas.
+                </div>
+            </div>
+        </aside>
+
+        <!-- COLUNA CENTRAL: VIEWPORT 3D/CGI DO PACIENTE E ENFERMARIA (5 Colunas no Desktop) -->
+        <section class="lg:col-span-5 flex flex-col gap-3 order-1 lg:order-2">
+            
+            <!-- Tela Principal CGI -->
+            <div class="relative bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex-1 min-h-[420px] sm:min-h-[500px] flex flex-col justify-between">
+                
+                <!-- HUD Overlay Topo da Câmera CGI -->
+                <div class="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <button onclick="openFlowStudio()" class="flex items-center gap-2 bg-slate-950/85 hover:bg-indigo-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-indigo-500/40 text-indigo-300 transition shadow-lg">
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+                            <span class="text-[11px] font-bold tracking-wider uppercase mono">🎬 Gerenciar Vídeos Flow (8 Falas + Idle)</span>
+                        </button>
+
+                        <button id="btnSwitchRenderMode" onclick="toggleRenderMode()" class="bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-700 text-[11px] font-semibold text-slate-300 transition">
+                            Modo: <span id="renderModeLabel" class="text-cyan-400 font-bold">Avatar SVG</span>
+                        </button>
+                    </div>
+
+                    <!-- Equalizador de Voz quando o paciente fala -->
+                    <div id="speakingIndicator" class="hidden items-center gap-2 bg-cyan-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/40 pointer-events-none">
+                        <div class="flex items-end gap-0.5 h-3.5">
+                            <div class="sound-bar h-2 animate-pulse"></div>
+                            <div class="sound-bar h-3.5 animate-bounce"></div>
+                            <div class="sound-bar h-1.5 animate-pulse"></div>
+                            <div class="sound-bar h-3 animate-bounce"></div>
+                        </div>
+                        <span id="speakingSourceLabel" class="text-[11px] font-semibold text-cyan-300">Sr. Pedro falando...</span>
+                    </div>
+                </div>
+
+                <!-- Alerta de Segurança do Paciente (Exibido se estudante tentar trocar a sonda) -->
+                <div id="safetyAlertBanner" class="hidden absolute top-14 left-3 right-3 z-20 bg-rose-950/95 border border-rose-500 text-rose-100 px-4 py-2.5 rounded-xl shadow-2xl items-center justify-between animate-bounce">
+                    <div class="flex items-center gap-2.5">
+                        <svg class="w-6 h-6 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div class="text-xs">
+                            <strong class="block text-rose-300 uppercase tracking-wider">Alerta Crítico de Segurança (Recusa do Paciente)</strong>
+                            <span>Propor a troca de um CVD inserido com uretroscopia difícil é uma conduta inadequada!</span>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('safetyAlertBanner').classList.add('hidden')" class="text-rose-300 hover:text-white text-xs font-bold px-2">✕</button>
+                </div>
+
+                <!-- CENÁRIO DUAL-MODE: GOOGLE FLOW VIDEO/KEYFRAME + FALLBACK SVG AVANÇADO -->
+                <div class="w-full h-full flex items-center justify-center relative overflow-hidden">
+                    
+                    <!-- CAMADA 1: PALCO DE VÍDEO NATIVO GOOGLE FLOW / VEO -->
+                    <div id="flowStageContainer" class="hidden absolute inset-0 z-10 bg-slate-950 flex items-center justify-center overflow-hidden">
+                        <!-- Keyframe Estática (Usada caso o usuário suba uma imagem .png/.jpg como base) -->
+                        <img id="flowKeyframeStage" src="" alt="Keyframe Sr. Pedro Flow" class="hidden w-full h-full object-cover transition-opacity duration-300" />
+                        
+                        <!-- Player de Vídeo Principal (Falas Nativas PT-BR e Loop Idle) -->
+                        <video id="flowVideoStage" class="w-full h-full object-cover transition-opacity duration-200" playsinline></video>
+
+                        <!-- Badge discreto indicando clipe em reprodução -->
+                        <div id="flowClipStatusBadge" class="absolute bottom-28 right-3 z-20 bg-slate-950/80 backdrop-blur-md border border-indigo-500/40 px-2.5 py-1 rounded-lg text-[10px] mono text-indigo-300">
+                            Flow Engine: Aguardando
+                        </div>
+                    </div>
+
+                    <!-- CAMADA 2: ATOR EM SVG AVANÇADO ESTILO CGI 3D (FALLBACK INTEGRADO) -->
+                    <svg id="cgiScene" viewBox="0 0 800 620" class="w-full h-full object-cover" preserveAspectRatio="xMidYMid slice">
+                        <defs>
+                            <!-- Iluminação Volumétrica de Enfermaria -->
+                            <radialGradient id="roomBgGrad" cx="50%" cy="35%" r="75%">
+                                <stop offset="0%" stop-color="#1e293b" />
+                                <stop offset="55%" stop-color="#0f172a" />
+                                <stop offset="100%" stop-color="#060911" />
+                            </radialGradient>
+
+                            <radialGradient id="ceilingLight" cx="50%" cy="0%" r="60%">
+                                <stop offset="0%" stop-color="rgba(56, 189, 248, 0.22)" />
+                                <stop offset="60%" stop-color="rgba(56, 189, 248, 0.04)" />
+                                <stop offset="100%" stop-color="rgba(15, 23, 42, 0)" />
+                            </radialGradient>
+
+                            <!-- Shaders de Pele 3D (Subsurface Scattering simulado) -->
+                            <radialGradient id="skinHeadGrad" cx="44%" cy="36%" r="58%">
+                                <stop offset="0%" stop-color="#f3cbb2" />
+                                <stop offset="55%" stop-color="#dfa889" />
+                                <stop offset="85%" stop-color="#c28363" />
+                                <stop offset="100%" stop-color="#9a5f42" />
+                            </radialGradient>
+
+                            <linearGradient id="skinNeckGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#a86b4c" />
+                                <stop offset="40%" stop-color="#cfa082" />
+                                <stop offset="100%" stop-color="#b57d5e" />
+                            </linearGradient>
+
+                            <radialGradient id="cheekFlush" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="rgba(225, 95, 85, 0.32)" />
+                                <stop offset="100%" stop-color="rgba(225, 95, 85, 0)" />
+                            </radialGradient>
+
+                            <!-- Cabelo Grisalho Volumétrico -->
+                            <linearGradient id="grayHairGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#f1f5f9" />
+                                <stop offset="50%" stop-color="#cbd5e1" />
+                                <stop offset="100%" stop-color="#64748b" />
+                            </linearGradient>
+
+                            <!-- Camisola Hospitalar 3D -->
+                            <linearGradient id="gownGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+                                <stop offset="0%" stop-color="#7dd3fc" />
+                                <stop offset="45%" stop-color="#38bdf8" />
+                                <stop offset="100%" stop-color="#0369a1" />
+                            </linearGradient>
+
+                            <!-- Lençol e Cama Hospitalar -->
+                            <linearGradient id="sheetGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#f8fafc" />
+                                <stop offset="30%" stop-color="#e2e8f0" />
+                                <stop offset="100%" stop-color="#94a3b8" />
+                            </linearGradient>
+
+                            <!-- Sombra suave -->
+                            <filter id="dropShadow3D" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.65" />
+                            </filter>
+                            <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <!-- 1. FUNDO DA ENFERMARIA -->
+                        <rect width="800" height="620" fill="url(#roomBgGrad)" />
+                        <ellipse cx="400" cy="40" rx="440" ry="280" fill="url(#ceilingLight)" />
+
+                        <!-- Janela Hospitalar à Esquerda com Luz Diurna Suave -->
+                        <g opacity="0.55">
+                            <rect x="40" y="60" width="130" height="220" rx="8" fill="#0f172a" stroke="#334155" stroke-width="4" />
+                            <rect x="48" y="68" width="114" height="204" rx="4" fill="#1e3a5f" />
+                            <!-- Persianas hospitalares -->
+                            <line x1="48" y1="100" x2="162" y2="100" stroke="#38bdf8" stroke-width="2" opacity="0.3" />
+                            <line x1="48" y1="130" x2="162" y2="130" stroke="#38bdf8" stroke-width="2" opacity="0.3" />
+                            <line x1="48" y1="160" x2="162" y2="160" stroke="#38bdf8" stroke-width="2" opacity="0.3" />
+                            <line x1="48" y1="190" x2="162" y2="190" stroke="#38bdf8" stroke-width="2" opacity="0.3" />
+                            <line x1="48" y1="220" x2="162" y2="220" stroke="#38bdf8" stroke-width="2" opacity="0.3" />
+                        </g>
+
+                        <!-- Régua de Gases / Painel Hospitalar de Parede -->
+                        <rect x="190" y="165" width="420" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="2" />
+                        <rect x="215" y="173" width="24" height="16" rx="3" fill="#10b981" opacity="0.8" />
+                        <rect x="250" y="173" width="24" height="16" rx="3" fill="#eab308" opacity="0.8" />
+                        <rect x="550" y="173" width="40" height="16" rx="3" fill="#38bdf8" opacity="0.4" />
+
+                        <!-- Monitor Multiparamétrico à Direita -->
+                        <g transform="translate(615, 85)" filter="url(#dropShadow3D)">
+                            <rect x="0" y="0" width="145" height="105" rx="10" fill="#1e293b" stroke="#475569" stroke-width="3" />
+                            <rect x="8" y="8" width="129" height="82" rx="6" fill="#020617" />
+                            <!-- Traçado ECG -->
+                            <path d="M 14 35 L 35 35 L 42 22 L 48 50 L 55 15 L 62 52 L 68 32 L 90 35 L 105 25 L 112 45 L 130 35" fill="none" stroke="#10b981" stroke-width="2" class="ecg-animate" />
+                            <text x="16" y="24" fill="#10b981" font-size="10" font-family="monospace" font-weight="bold">FC 76 bpm</text>
+                            <text x="16" y="68" fill="#38bdf8" font-size="10" font-family="monospace" font-weight="bold">SpO2 97%</text>
+                            <text x="16" y="83" fill="#f59e0b" font-size="10" font-family="monospace" font-weight="bold">PA 128/78</text>
+                            <!-- Suporte do monitor -->
+                            <rect x="65" y="105" width="14" height="90" fill="#334155" />
+                        </g>
+
+                        <!-- 2. LEITO HOSPITALAR -->
+                        <g filter="url(#dropShadow3D)">
+                            <!-- Cabeceira da Cama -->
+                            <rect x="210" y="215" width="380" height="230" rx="22" fill="#334155" stroke="#475569" stroke-width="4" />
+                            <rect x="228" y="232" width="344" height="190" rx="14" fill="#1e293b" />
+                            <!-- Travesseiro Hospitalar -->
+                            <rect x="260" y="245" width="280" height="115" rx="35" fill="#e2e8f0" />
+                            <path d="M 275 265 Q 400 290 525 265" fill="none" stroke="#cbd5e1" stroke-width="4" />
+                        </g>
+
+                        <!-- 3. CORPO DO PACIENTE SR. PEDRO (COM ANIMAÇÃO DE RESPIRAÇÃO) -->
+                        <g id="patientBody" class="cgi-breathe" filter="url(#dropShadow3D)">
+                            <!-- Ombros e Tronco na Camisola Hospitalar -->
+                            <path d="M 225 540 C 225 405, 285 365, 400 365 C 515 365, 575 405, 575 540 L 590 620 L 210 620 Z" fill="url(#gownGrad)" />
+                            
+                            <!-- Gola em V da camisola e estampas discretas -->
+                            <path d="M 345 366 L 400 435 L 455 366" fill="#9a5f42" />
+                            <path d="M 340 366 L 400 442 L 460 366" fill="none" stroke="#bae6fd" stroke-width="6" stroke-linecap="round" />
+                            
+                            <!-- Dobras de tecido 3D da camisola -->
+                            <path d="M 310 420 Q 335 480 320 540" fill="none" stroke="#0284c7" stroke-width="4" opacity="0.6" />
+                            <path d="M 490 420 Q 465 480 480 540" fill="none" stroke="#0284c7" stroke-width="4" opacity="0.6" />
+                            <path d="M 400 442 L 400 535" fill="none" stroke="#0284c7" stroke-width="3" opacity="0.4" />
+
+                            <!-- Pescoço com anatomia de idoso -->
+                            <path d="M 358 310 L 358 378 Q 400 405 442 378 L 442 310 Z" fill="url(#skinNeckGrad)" />
+                            <!-- Pregas do pescoço -->
+                            <path d="M 374 345 Q 400 362 426 345" fill="none" stroke="#8c5236" stroke-width="2" opacity="0.55" />
+                            <path d="M 382 325 L 392 375" fill="none" stroke="#8c5236" stroke-width="2.5" opacity="0.4" />
+                            <path d="M 418 325 L 408 375" fill="none" stroke="#8c5236" stroke-width="2.5" opacity="0.4" />
+
+                            <!-- 4. CABEÇA E ROSTO CGI (COM EXPRESSÕES DINÂMICAS) -->
+                            <g id="patientHead" class="cgi-head-idle">
+                                
+                                <!-- Orelhas -->
+                                <ellipse cx="316" cy="248" rx="14" ry="26" fill="#c28363" stroke="#8c5236" stroke-width="2" />
+                                <path d="M 314 236 Q 322 248 314 260" fill="none" stroke="#8c5236" stroke-width="2.5" />
+                                <ellipse cx="484" cy="248" rx="14" ry="26" fill="#c28363" stroke="#8c5236" stroke-width="2" />
+                                <path d="M 486 236 Q 478 248 486 260" fill="none" stroke="#8c5236" stroke-width="2.5" />
+
+                                <!-- Crânio / Rosto Base -->
+                                <path d="M 322 185 C 322 122, 478 122, 478 185 C 482 235, 474 300, 444 326 C 420 346, 380 346, 356 326 C 326 300, 318 235, 322 185 Z" fill="url(#skinHeadGrad)" />
+
+                                <!-- Rubor facial / Textura de bochechas -->
+                                <circle cx="352" cy="262" r="24" fill="url(#cheekFlush)" />
+                                <circle cx="448" cy="262" r="24" fill="url(#cheekFlush)" />
+
+                                <!-- Cabelo Grisalho (Estilo Sr. Pedro 78 anos) -->
+                                <path d="M 320 205 C 312 165, 330 128, 365 122 C 388 118, 412 118, 435 122 C 470 128, 488 165, 480 205 C 475 182, 468 164, 452 154 C 420 144, 380 144, 348 154 C 332 164, 325 182, 320 205 Z" fill="url(#grayHairGrad)" />
+                                <!-- Fios grisalhos nas têmporas -->
+                                <path d="M 320 190 L 325 225 L 332 195 Z" fill="#cbd5e1" />
+                                <path d="M 480 190 L 475 225 L 468 195 Z" fill="#cbd5e1" />
+
+                                <!-- Rugas de Expressão na Testa (Reativas à emoção) -->
+                                <g id="foreheadWrinkles" opacity="0.65" class="cgi-transition">
+                                    <path d="M 355 170 Q 400 164 445 170" fill="none" stroke="#8c5236" stroke-width="2" stroke-linecap="round" />
+                                    <path d="M 362 180 Q 400 175 438 180" fill="none" stroke="#8c5236" stroke-width="1.8" stroke-linecap="round" />
+                                    <!-- Ruga glabelar (entre sobrancelhas) -->
+                                    <path id="glabellaLines" d="M 394 192 L 395 208 M 406 192 L 405 208" fill="none" stroke="#7c4328" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+                                </g>
+
+                                <!-- OLHOS CGI (Com pálpebras e pupilas móveis) -->
+                                <!-- Olho Esquerdo -->
+                                <g id="eyeLeftGroup" transform="translate(364, 224)">
+                                    <!-- Olheira de cansaço -->
+                                    <path d="M -20 10 Q 0 22 20 10" fill="none" stroke="#9a5f42" stroke-width="2.5" opacity="0.6" />
+                                    <!-- Esclera -->
+                                    <ellipse id="scleraL" cx="0" cy="0" rx="16" ry="9.5" fill="#f8fafc" stroke="#7c4328" stroke-width="1.5" class="cgi-transition" />
+                                    <!-- Íris e Pupila -->
+                                    <g id="pupilL" class="cgi-transition">
+                                        <circle cx="0" cy="0" r="6.5" fill="#452715" />
+                                        <circle cx="0" cy="0" r="3.2" fill="#090d16" />
+                                        <circle cx="-2" cy="-2" r="1.6" fill="#ffffff" opacity="0.9" />
+                                    </g>
+                                    <!-- Pálpebra para piscar -->
+                                    <ellipse id="blinkLidL" cx="0" cy="0" rx="17" ry="10.5" fill="#cfa082" opacity="0" />
+                                    <!-- Pés de galinha -->
+                                    <path d="M -20 -2 L -27 -5 M -20 2 L -28 3" stroke="#8c5236" stroke-width="1.5" stroke-linecap="round" opacity="0.6" />
+                                </g>
+
+                                <!-- Olho Direito -->
+                                <g id="eyeRightGroup" transform="translate(436, 224)">
+                                    <path d="M -20 10 Q 0 22 20 10" fill="none" stroke="#9a5f42" stroke-width="2.5" opacity="0.6" />
+                                    <ellipse id="scleraR" cx="0" cy="0" rx="16" ry="9.5" fill="#f8fafc" stroke="#7c4328" stroke-width="1.5" class="cgi-transition" />
+                                    <g id="pupilR" class="cgi-transition">
+                                        <circle cx="0" cy="0" r="6.5" fill="#452715" />
+                                        <circle cx="0" cy="0" r="3.2" fill="#090d16" />
+                                        <circle cx="-2" cy="-2" r="1.6" fill="#ffffff" opacity="0.9" />
+                                    </g>
+                                    <ellipse id="blinkLidR" cx="0" cy="0" rx="17" ry="10.5" fill="#cfa082" opacity="0" />
+                                    <path d="M 20 -2 L 27 -5 M 20 2 L 28 3" stroke="#8c5236" stroke-width="1.5" stroke-linecap="round" opacity="0.6" />
+                                </g>
+
+                                <!-- Sobrancelhas Grisalhas (Expressivas) -->
+                                <path id="eyebrowLeft" d="M 342 205 Q 364 196 385 206" fill="none" stroke="#cbd5e1" stroke-width="6.5" stroke-linecap="round" class="cgi-transition" />
+                                <path id="eyebrowRight" d="M 415 206 Q 436 196 458 205" fill="none" stroke="#cbd5e1" stroke-width="6.5" stroke-linecap="round" class="cgi-transition" />
+
+                                <!-- Nariz 3D -->
+                                <path d="M 397 220 L 392 258 C 384 265, 392 273, 400 273 C 408 273, 416 265, 408 258 L 403 220" fill="#cfa082" stroke="#8c5236" stroke-width="2" stroke-linejoin="round" />
+                                <circle cx="393" cy="268" r="3" fill="#6b3820" opacity="0.7" />
+                                <circle cx="407" cy="268" r="3" fill="#6b3820" opacity="0.7" />
+
+                                <!-- Sulco Nasolabial (Bigode Chinês) -->
+                                <path d="M 380 262 Q 362 282 365 304" fill="none" stroke="#8c5236" stroke-width="2.2" stroke-linecap="round" opacity="0.65" />
+                                <path d="M 420 262 Q 438 282 435 304" fill="none" stroke="#8c5236" stroke-width="2.2" stroke-linecap="round" opacity="0.65" />
+
+                                <!-- Barba por fazer / Bigode grisalho ralo -->
+                                <path d="M 368 284 Q 400 275 432 284" fill="none" stroke="#cbd5e1" stroke-width="5" stroke-dasharray="2 3" opacity="0.65" />
+                                <path d="M 358 312 Q 400 342 442 312" fill="none" stroke="#cbd5e1" stroke-width="10" stroke-dasharray="1 4" opacity="0.35" />
+
+                                <!-- BOCA (Com Lip-Sync e 6 Estados Emocionais) -->
+                                <g id="mouthContainer">
+                                    <!-- Linha da boca quando fechada -->
+                                    <path id="mouthLine" d="M 376 298 Q 400 293 424 298" fill="none" stroke="#6b2d26" stroke-width="3.8" stroke-linecap="round" class="cgi-transition" />
+                                    <!-- Cavidade oral para fala (Lip-Sync) -->
+                                    <ellipse id="mouthOpen" cx="400" cy="298" rx="14" ry="1" fill="#451215" stroke="#7f3b32" stroke-width="2" opacity="0" />
+                                    <!-- Língua sutil no lip-sync -->
+                                    <ellipse id="mouthTongue" cx="400" cy="302" rx="8" ry="2" fill="#be4b4b" opacity="0" />
+                                </g>
+                            </g>
+                        </g>
+
+                        <!-- 5. LENÇOL HOSPITALAR, FRALDA E SISTEMA DE CATETER VESICAL (CVD) -->
+                        <g filter="url(#dropShadow3D)">
+                            <!-- Lençol cobrindo o quadril -->
+                            <path d="M 165 515 Q 400 490 635 515 L 660 620 L 140 620 Z" fill="url(#sheetGrad)" />
+                            <path d="M 175 515 Q 400 492 625 515" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.8" />
+                            
+                            <!-- Indicador visual sutil da borda da fralda sob o lençol -->
+                            <g id="diaperIndicator" transform="translate(335, 488)">
+                                <rect x="0" y="0" width="130" height="22" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" />
+                                <rect x="10" y="5" width="22" height="8" rx="2" fill="#38bdf8" opacity="0.7" />
+                                <rect x="98" y="5" width="22" height="8" rx="2" fill="#38bdf8" opacity="0.7" />
+                                <!-- Mancha sutil indicando umidade pericateter -->
+                                <ellipse cx="65" cy="14" rx="24" ry="6" fill="#eab308" opacity="0.28" />
+                            </g>
+
+                            <!-- Mãos do Sr. Pedro apoiadas sobre o lençol -->
+                            <g id="patientHands" class="cgi-transition">
+                                <ellipse cx="320" cy="518" rx="28" ry="16" fill="#d9a182" stroke="#9a5f42" stroke-width="2" />
+                                <ellipse cx="480" cy="518" rx="28" ry="16" fill="#d9a182" stroke="#9a5f42" stroke-width="2" />
+                            </g>
+
+                            <!-- TUBO EXTENSOR E BOLSA COLETORA DE CVD (Sistema Fechado) -->
+                            <g id="cvdSystem" onclick="inspectCatheter()" class="cursor-pointer group">
+                                <!-- Tubo de drenagem saindo sob o lençol -->
+                                <path d="M 435 515 C 495 520, 560 495, 625 535" fill="none" stroke="#fef08a" stroke-width="6" stroke-linecap="round" opacity="0.85" />
+                                <path d="M 435 515 C 495 520, 560 495, 625 535" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 4" opacity="0.6" />
+
+                                <!-- Bolsa Coletora Pendurada na Lateral do Leito -->
+                                <g transform="translate(595, 495)">
+                                    <!-- Alça de fixação -->
+                                    <path d="M 20 0 L 30 -15 L 40 0" fill="none" stroke="#cbd5e1" stroke-width="3" />
+                                    <!-- Corpo da bolsa -->
+                                    <rect x="0" y="0" width="64" height="92" rx="10" fill="rgba(241, 245, 249, 0.25)" stroke="#94a3b8" stroke-width="2.5" />
+                                    <!-- Urina límpida dentro da bolsa (350mL) -->
+                                    <path d="M 3 45 Q 32 48 61 45 L 61 82 C 61 87, 57 89, 52 89 L 12 89 C 7 89, 3 87, 3 82 Z" fill="#facc15" opacity="0.75" />
+                                    <!-- Gota gotejando no sistema fechado (Pérvio!) -->
+                                    <circle cx="32" cy="12" r="3" fill="#facc15" class="drip-animate" />
+                                    <!-- Graduação da bolsa -->
+                                    <line x1="12" y1="25" x2="24" y2="25" stroke="#cbd5e1" stroke-width="1.5" />
+                                    <line x1="12" y1="45" x2="24" y2="45" stroke="#cbd5e1" stroke-width="1.5" />
+                                    <line x1="12" y1="65" x2="24" y2="65" stroke="#cbd5e1" stroke-width="1.5" />
+                                    <text x="30" y="68" fill="#0f172a" font-size="9" font-weight="bold" font-family="monospace">12Fr</text>
+                                    <!-- Label flutuante no hover -->
+                                    <rect x="-45" y="-34" width="150" height="22" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"
+                                        class="opacity-90 group-hover:opacity-100 transition" />
+                                    <text x="30" y="-19" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">🔍 CVD 12Fr (Inspecionar)</text>
+                                </g>
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- CAIXA DE LEGENDA / FALA ATUAL DO PACIENTE (ESTILO CINEMÁTICO) -->
+                <div class="relative z-20 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent p-4 pt-6 border-t border-slate-800/80">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Sr. Pedro Costa Matias</span>
+                                <span id="subtitleEmotionTag" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">Postura relaxada, sentado no leito</span>
+                            </div>
+                            <p id="currentSpeechBubble" class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed min-h-[3rem]">
+                                "Clique em <strong class="text-cyan-400">Iniciar Atendimento</strong> abaixo para entrar no quarto e ouvir o Sr. Pedro."
+                            </p>
+                        </div>
+
+                        <!-- Botão para repetir áudio da última fala -->
+                        <button onclick="repeatLastSpeech()" title="Repetir fala em voz alta" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Botão de Destaque para Iniciar ou Continuar Fala Inicial -->
+                    <div id="startActionContainer" class="mt-3 flex flex-wrap gap-2">
+                        <button id="btnStartEncounter" onclick="startEncounter()" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.99]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Iniciar Atendimento (Fala 1 + Fala 2 em Sequência)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra Rápida de Teste de Expressões CGI / Clipes Flow -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span class="text-slate-400 font-medium text-[11px]">🎭 Testar Reação / Clipe:</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="setActorEmotion('neutro', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-[11px]">Neutro</button>
+                    <button onclick="setActorEmotion('frustrado', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 transition text-[11px]">Frustrado</button>
+                    <button onclick="setActorEmotion('curioso', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 transition text-[11px]">Curioso</button>
+                    <button onclick="setActorEmotion('decepcionado', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 transition text-[11px]">Decepcionado</button>
+                    <button onclick="setActorEmotion('aliviado', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 transition text-[11px]">Aliviado</button>
+                    <button onclick="setActorEmotion('nervoso', true)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 transition text-[11px]">Nervoso (Recusa)</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUNA DIREITA: DIÁLOGO CLÍNICO, PERGUNTAS GUIADAS E MODO LIVRE (4 Colunas no Desktop) -->
+        <section class="lg:col-span-4 flex flex-col gap-3 order-3 h-[640px] lg:h-auto">
+            
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl flex-1 flex flex-col overflow-hidden shadow-xl">
+                
+                <!-- Cabeçalho do Diálogo -->
+                <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                        </svg>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Registro de Diálogo Clínico</h2>
+                    </div>
+                    <span id="turnCounter" class="text-[11px] mono text-slate-400">Interações: 0</span>
+                </div>
+
+                <!-- Histórico de Transcrição (Chat Log) -->
+                <div id="chatLog" class="flex-1 p-3.5 overflow-y-auto space-y-3 bg-slate-950/30">
+                    <div class="text-center py-6 px-4 text-xs text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                        <p class="font-semibold text-slate-300 mb-1">Estação Prática de Enfermagem</p>
+                        <p>Inicie o atendimento para ouvir o relato espontâneo do Sr. Pedro. Depois, utilize os botões de conduta abaixo ou digite/fale livremente.</p>
+                    </div>
+                </div>
+
+                <!-- PAINEL DE CONDUTAS E PERGUNTAS GUIADAS (TABS) -->
+                <div class="border-t border-slate-800 bg-slate-900 p-3 space-y-2.5">
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Opções de Diálogo / Conduta da Equipe:</span>
+                        <div class="flex gap-1">
+                            <button onclick="filterPrompts('all')" id="tab-all" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Todas</button>
+                            <button onclick="filterPrompts('anamnese')" id="tab-anamnese" class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Investigação</button>
+                            <button onclick="filterPrompts('conduta')" id="tab-conduta" class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Educação / Conduta</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Botões de Ação do Estudante (Neutralizados e Embaralhados via JS) -->
+                    <div id="guidedButtonsContainer" class="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                        <!-- Renderizado dinamicamente e embaralhado por renderNeutralActionButtons() -->
+                    </div>
+
+                    <!-- INPUT LIVRE (DIGITAÇÃO OU MICROFONE EM PORTUGUÊS) -->
+                    <form onsubmit="handleFreeTextSubmit(event)" autocomplete="off" class="pt-1 flex items-center gap-2">
+                        <button type="button" id="btnMic" onclick="toggleSpeechRecognition()" title="Falar no Microfone (pt-BR)" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                            </svg>
+                        </button>
+                        <input id="freeTextInput" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Ou digite/fale sua pergunta ao Sr. Pedro..." class="flex-1 bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition" />
+                        <button type="submit" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition shrink-0">
+                            Enviar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL DE DEBRIEFING E AVALIAÇÃO OSCE -->
+    <div id="debriefModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5">
+            
+            <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Avaliação Formativa • Checklist OSCE</span>
+                    <h2 class="text-xl font-extrabold text-white mt-0.5">Relatório de Desempenho Clínico</h2>
+                    <p class="text-xs text-slate-400">Caso: Pedro Costa Matias (78a) — Extravasamento Pericateter em CVD Pré-Prostatectomia</p>
+                </div>
+                <div class="text-right bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Nota Global</span>
+                    <span id="finalScoreText" class="text-2xl font-black text-emerald-400 mono">0%</span>
+                </div>
+            </div>
+
+            <!-- Feedback Pedagógico Detalhado -->
+            <div id="debriefItemsContainer" class="space-y-2.5 text-xs">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Resumo Teórico do Caso -->
+            <div class="bg-blue-950/30 border border-blue-800/50 rounded-xl p-4 text-xs space-y-1.5">
+                <h4 class="font-bold text-blue-300 uppercase tracking-wider">📌 Síntese Clínica para Enfermagem</h4>
+                <p class="text-slate-300 leading-relaxed">
+                    Em pacientes submetidos a <strong>cateterismo vesical difícil guiado por uretroscopia</strong>, frequentemente instala-se uma sonda de menor calibre (ex.: 12 Fr) para vencer a obstrução prostática/estenose com menor trauma. Quando o sistema está pérvio (drenando urina clara na bolsa), o escape urinário ao redor da sonda deve-se ao calibre reduzido ou a espasmos detrusores. <strong>A remoção ou tentativa de troca da sonda pela equipe de enfermagem é estritamente contraindicada</strong> pelo alto risco de falso trajeto uretral e impossibilidade de recateterização antes da prostatectomia. O papel essencial da enfermagem é avaliar a permeabilidade, acolher o constrangimento do paciente e educá-lo de forma tranquilizadora.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-slate-800">
+                <button onclick="closeDebriefing()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition">
+                    Voltar ao Atendimento
+                </button>
+                <button onclick="resetSimulation()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg transition">
+                    Reiniciar Simulação
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ESTÚDIO GOOGLE FLOW / VEO (GERENCIADOR DOS 9 SLOTS COM ÁUDIO NATIVO PT-BR) -->
+    <div id="flowStudioModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
+        <div class="bg-slate-900 border border-indigo-500/40 rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            <!-- Cabeçalho do Estúdio Flow -->
+            <div class="px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/70">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Google Flow / Veo Integration</span>
+                        <span id="flowStudioSummaryBadge" class="text-xs text-emerald-400 font-semibold mono">0 de 9 arquivos carregados</span>
+                    </div>
+                    <h2 class="text-lg font-extrabold text-white mt-1">Estúdio de Vídeos com Fala Nativa em Português BR</h2>
+                    <p class="text-xs text-slate-400">Suba sua Keyframe/Loop Idle e os 8 clipes `.mp4` gerados no Flow. O simulador tocará o áudio original em português de cada vídeo.</p>
+                </div>
+
+                <div class="flex items-center gap-2.5">
+                    <!-- Upload em Lote Inteligente -->
+                    <label class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs cursor-pointer shadow-lg flex items-center gap-2 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
+                        <span>Carregar Vários Arquivos de Uma Vez</span>
+                        <input type="file" multiple accept="video/mp4,video/webm,image/*" class="hidden" onchange="handleBulkFlowUpload(event)" />
+                    </label>
+
+                    <button onclick="closeFlowStudio()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-bold px-3 transition">
+                        ✕ Fechar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Instrução de Nomeação Rápida + Notificação de Cópia -->
+            <div class="px-6 py-2.5 bg-indigo-950/30 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="text-slate-300">
+                    💡 <strong>Dica para Upload em Lote:</strong> Nomeie seus arquivos como <code class="text-cyan-300 mono">idle</code>, <code class="text-cyan-300 mono">fala1</code>, <code class="text-cyan-300 mono">fala2</code> ... até <code class="text-cyan-300 mono">fala8</code> (ou selecione individualmente em cada linha abaixo).
+                </div>
+                <span id="copyPromptToast" class="hidden text-emerald-400 font-bold animate-pulse">✓ Prompt copiado para a área de transferência!</span>
+            </div>
+
+            <!-- Lista dos 9 Slots (1 Idle + 8 Falas do Roteiro) -->
+            <div id="flowSlotsList" class="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <!-- Preenchido dinamicamente pelo JS -->
+            </div>
+
+            <!-- Rodapé do Modal -->
+            <div class="px-6 py-3.5 border-t border-slate-800 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs text-slate-400">
+                    Quando um vídeo `.mp4` está carregado, o simulador desativa o sintetizador do navegador naquela fala e reproduz o <strong>áudio nativo do Google Flow</strong>.
+                </div>
+                <button onclick="closeFlowStudio()" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition">
+                    Concluir e Voltar ao Simulador
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT: MOTOR CGI, GOOGLE FLOW NATIVE VIDEO ENGINE, SÍNTESE DE VOZ PT-BR, NLP E ROTEIRO CLÍNICO -->
+    <script>
+        // ============================================================================
+        // 1. ESTADO GLOBAL DA SIMULAÇÃO E CONFIGURAÇÃO DO GOOGLE FLOW
+        // ============================================================================
+        const simState = {
+            started: false,
+            audioEnabled: true,
+            renderMode: 'svg', // 'svg' ou 'flow'
+            isSpeaking: false,
+            trust: 50,
+            anxiety: 55,
+            emotion: 'frustrado',
+            turns: 0,
+            lastSpokenKey: null,
+            lastSpokenText: '',
+            lipSyncInterval: null,
+            checklist: {
+                welcome: false,
+                inspectedCVD: false,
+                askedPain: false,
+                askedOnset: false,
+                askedPrevInfo: false,
+                explainedCaliber: false,
+                suggestedChangeError: false,
+                judgmentError: false,
+                closedProperly: false
+            }
+        };
+
+        // Estrutura dos 9 Slots do Google Flow (1 Keyframe/Idle + 8 Clipes com Fala Nativa PT-BR)
+        const flowSlots = {
+            slot_idle: {
+                id: 'slot_idle',
+                label: 'Slot 0 • Keyframe ou Loop Silencioso (Idle)',
+                shortCode: 'idle',
+                expectedFiles: ['idle.mp4', 'idle_neutro.mp4', 'videos/idle.mp4', 'videos/idle_neutro.mp4', 'idle.webm', 'idle.png', 'idle.jpg'],
+                emotion: 'neutro',
+                type: 'none', // 'video' | 'image' | 'none'
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: '(Paciente em silêncio no leito, respirando calmamente e piscando enquanto escuta o estudante)',
+                veoPrompt: 'Static locked-off camera. The elderly Brazilian patient remains seated calmly on the hospital bed with his mouth closed, not speaking. Subtle natural chest breathing movement, occasional natural eye blinking, gentle micro-movements of the head as he listens attentively to the camera. Consistent hospital lighting, smooth loop.'
+            },
+            fala_inicial_1: {
+                id: 'fala_inicial_1',
+                label: 'Fala 1 • Abertura Espontânea (Frustrado com a fralda)',
+                shortCode: 'fala1',
+                expectedFiles: ['fala1.mp4', 'videos/fala1.mp4', 'fala_1.mp4', '01.mp4'],
+                emotion: 'frustrado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Oi, tudo bem? Eu tô esperando pra fazer uma cirurgia... Mas essa fralda aqui... olha... desde que colocaram essa sonda, eu tenho que usar isso o tempo todo.',
+                veoPrompt: 'Static camera. The elderly Brazilian man on the hospital bed looks slightly embarrassed and frustrated, gestures subtly toward his lap, and speaks in Brazilian Portuguese with a calm, weary 78-year-old voice: "Oi, tudo bem? Eu tô esperando pra fazer uma cirurgia... Mas essa fralda aqui... olha... desde que colocaram essa sonda, eu tenho que usar isso o tempo todo." Ambient quiet hospital room, no background music.'
+            },
+            fala_inicial_2: {
+                id: 'fala_inicial_2',
+                label: 'Fala 2 • Histórico da Sonda (Retenção e Uretroscopia)',
+                shortCode: 'fala2',
+                expectedFiles: ['fala2.mp4', 'videos/fala2.mp4', 'fala_2.mp4', '02.mp4'],
+                emotion: 'frustrado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Passaram essa sonda aí porque eu tava com retenção... foi uma dificuldade danada, precisaram do urologista e até de câmera... mas desde então, fica vazando.',
+                veoPrompt: 'Static camera. The elderly Brazilian man speaks calmly with a slight expression of discomfort in Brazilian Portuguese, 78-year-old male voice: "Passaram essa sonda aí porque eu tava com retenção... foi uma dificuldade danada, precisaram do urologista e até de câmera... mas desde então, fica vazando." Quiet clinical room, no background music.'
+            },
+            dor_sintomas: {
+                id: 'dor_sintomas',
+                label: 'Fala 3 • Questionado sobre Dor ou Sintomas (Calmo)',
+                shortCode: 'fala3',
+                expectedFiles: ['fala3.mp4', 'videos/fala3.mp4', 'fala_3.mp4', '03.mp4'],
+                emotion: 'neutro',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Não, dor eu não tenho, não. A urina sai normal pela bolsinha... mas sempre escorre também, me molha todo.',
+                veoPrompt: 'Static camera. The elderly Brazilian man shakes his head gently and speaks calmly in Brazilian Portuguese, 78-year-old male voice: "Não, dor eu não tenho, não. A urina sai normal pela bolsinha... mas sempre escorre também, me molha todo." Quiet room, no background music.'
+            },
+            inicio_vazamento: {
+                id: 'inicio_vazamento',
+                label: 'Fala 4 • Quando Começou o Vazamento (Frustrado)',
+                shortCode: 'fala4',
+                expectedFiles: ['fala4.mp4', 'videos/fala4.mp4', 'fala_4.mp4', '04.mp4'],
+                emotion: 'frustrado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Desde que colocaram. Nunca ficou certinho. Aí mandaram usar fralda.',
+                veoPrompt: 'Static camera. The elderly Brazilian man sighs lightly and speaks in Brazilian Portuguese with mild frustration, 78-year-old male voice: "Desde que colocaram. Nunca ficou certinho. Aí mandaram usar fralda." No background music.'
+            },
+            explicacao_previa: {
+                id: 'explicacao_previa',
+                label: 'Fala 5 • Falta de Orientação Prévia (Decepcionado/Constrangido)',
+                shortCode: 'fala5',
+                expectedFiles: ['fala5.mp4', 'videos/fala5.mp4', 'fala_5.mp4', '05.mp4'],
+                emotion: 'decepcionado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Não... ninguém falou nada. Eu achei que tava com problema. Fico constrangido, sabe?',
+                veoPrompt: 'Static camera. The elderly Brazilian man looks disappointed and embarrassed, looking down briefly while speaking softly in Brazilian Portuguese, 78-year-old male voice: "Não... ninguém falou nada. Eu achei que tava com problema. Fico constrangido, sabe?" No background music.'
+            },
+            explicar_calibre: {
+                id: 'explicar_calibre',
+                label: 'Fala 6 • Compreensão do Calibre Pequeno (Curioso / Aliviado)',
+                shortCode: 'fala6',
+                expectedFiles: ['fala6.mp4', 'videos/fala6.mp4', 'fala_6.mp4', '06.mp4'],
+                emotion: 'aliviado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Ah, é? Ninguém me explicou isso. Se eu soubesse, teria ficado mais tranquilo... Achei que era erro, ou que tavam me negligenciando.',
+                veoPrompt: 'Static camera. The elderly Brazilian man raises his eyebrows in realization and visible relief, speaking warmly in Brazilian Portuguese, 78-year-old male voice: "Ah, é? Ninguém me explicou isso. Se eu soubesse, teria ficado mais tranquilo... Achei que era erro, ou que tavam me negligenciando." No background music.'
+            },
+            trocar_sonda: {
+                id: 'trocar_sonda',
+                label: 'Fala 7 • Recusa de Troca da Sonda (Nervoso / Conduta Inadequada)',
+                shortCode: 'fala7',
+                expectedFiles: ['fala7.mp4', 'videos/fala7.mp4', 'fala_7.mp4', '07.mp4'],
+                emotion: 'nervoso',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'De jeito nenhum, ninguém vai mexer na sonda... só eu sei o quanto sofri para passarem isso.',
+                veoPrompt: 'Static camera. The elderly Brazilian man looks alarmed, anxious, and defensive, raising a hand in refusal and shaking his head firmly while speaking urgently in Brazilian Portuguese, 78-year-old male voice: "De jeito nenhum, ninguém vai mexer na sonda... só eu sei o quanto sofri para passarem isso." No background music.'
+            },
+            encerramento: {
+                id: 'encerramento',
+                label: 'Fala 8 • Encerramento Acolhedor (Grato / Aliviado)',
+                shortCode: 'fala8',
+                expectedFiles: ['fala8.mp4', 'videos/fala8.mp4', 'fala_8.mp4', '08.mp4'],
+                emotion: 'aliviado',
+                type: 'none',
+                url: null,
+                fileName: null,
+                source: null,
+                scriptPtBr: 'Obrigado por me explicar... agora entendo melhor.',
+                veoPrompt: 'Static camera. The elderly Brazilian man smiles warmly with gratitude and relaxed shoulders, speaking kindly in Brazilian Portuguese, 78-year-old male voice: "Obrigado por me explicar... agora entendo melhor." No background music.'
+            }
+        };
+
+        // Roteiro completo de falas do paciente simulado (Sr. Pedro)
+        const scriptLines = {
+            fala_inicial_1: {
+                emotion: 'frustrado',
+                subtitleTag: 'Expressa leve frustração ao mencionar a fralda',
+                text: 'Oi, tudo bem? Eu tô esperando pra fazer uma cirurgia... Mas essa fralda aqui... olha... desde que colocaram essa sonda, eu tenho que usar isso o tempo todo.'
+            },
+            fala_inicial_2: {
+                emotion: 'frustrado',
+                subtitleTag: 'Relata dificuldade na passagem com uretroscopia',
+                text: 'Passaram essa sonda aí porque eu tava com retenção... foi uma dificuldade danada, precisaram do urologista e até de câmera... mas desde então, fica vazando.'
+            },
+            dor_sintomas: {
+                emotion: 'neutro',
+                subtitleTag: 'Fala com calma, colaborativo',
+                text: 'Não, dor eu não tenho, não. A urina sai normal pela bolsinha... mas sempre escorre também, me molha todo.'
+            },
+            inicio_vazamento: {
+                emotion: 'frustrado',
+                subtitleTag: 'Desconforto contínuo desde a inserção',
+                text: 'Desde que colocaram. Nunca ficou certinho. Aí mandaram usar fralda.'
+            },
+            explicacao_previa: {
+                emotion: 'decepcionado',
+                subtitleTag: 'Decepção leve e constrangimento por falta de orientação',
+                text: 'Não... ninguém falou nada. Eu achei que tava com problema. Fico constrangido, sabe?'
+            },
+            explicar_calibre: {
+                emotion: 'aliviado',
+                subtitleTag: 'Curiosidade seguida de visível alívio',
+                text: 'Ah, é? Ninguém me explicou isso. Se eu soubesse, teria ficado mais tranquilo... Achei que era erro, ou que tavam me negligenciando.'
+            },
+            trocar_sonda: {
+                emotion: 'nervoso',
+                subtitleTag: 'Bastante nervoso • Recusa veementemente o procedimento',
+                text: 'De jeito nenhum, ninguém vai mexer na sonda... só eu sei o quanto sofri para passarem isso.'
+            },
+            julgamento: {
+                emotion: 'frustrado',
+                subtitleTag: 'Aumenta a frustração ao perceber resistência/julgamento',
+                text: 'É fácil falar quando não é o senhor que tá aqui todo molhado numa fralda sem saber o porquê...'
+            },
+            encerramento: {
+                emotion: 'aliviado',
+                subtitleTag: 'Alívio e gratidão pela equipe acolhedora',
+                text: 'Obrigado por me explicar... agora entendo melhor.'
+            }
+        };
+
+        // Funções de Controle e Renderização do Estúdio Google Flow / Veo
+        function openFlowStudio() {
+            renderFlowStudioSlots();
+            document.getElementById('flowStudioModal').classList.remove('hidden');
+        }
+
+        function closeFlowStudio() {
+            document.getElementById('flowStudioModal').classList.add('hidden');
+        }
+
+        function enableFlowRenderMode() {
+            simState.renderMode = 'flow';
+            const flowStage = document.getElementById('flowStageContainer');
+            const label = document.getElementById('renderModeLabel');
+            if (flowStage) flowStage.classList.remove('hidden');
+            if (label) {
+                label.textContent = 'Google Flow (Vídeo)';
+                label.className = 'text-indigo-400 font-bold';
+            }
+            if (!simState.isSpeaking) {
+                returnToFlowIdleStage();
+            }
+        }
+
+        function toggleRenderMode() {
+            if (simState.renderMode === 'svg') {
+                enableFlowRenderMode();
+            } else {
+                simState.renderMode = 'svg';
+                const flowStage = document.getElementById('flowStageContainer');
+                const videoEl = document.getElementById('flowVideoStage');
+                const label = document.getElementById('renderModeLabel');
+                if (videoEl) videoEl.pause();
+                if (flowStage) flowStage.classList.add('hidden');
+                if (label) {
+                    label.textContent = 'Avatar SVG';
+                    label.className = 'text-cyan-400 font-bold';
+                }
+            }
+        }
+
+        function copyVeoPrompt(slotKey) {
+            const slot = flowSlots[slotKey];
+            if (!slot) return;
+
+            const tempArea = document.createElement('textarea');
+            tempArea.value = slot.veoPrompt;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {}
+            document.body.removeChild(tempArea);
+
+            const toast = document.getElementById('copyPromptToast');
+            if (toast) {
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2500);
+            }
+        }
+
+        function renderFlowStudioSlots() {
+            const listEl = document.getElementById('flowSlotsList');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            let loadedCount = 0;
+            const totalSlots = Object.keys(flowSlots).length;
+
+            Object.values(flowSlots).forEach(slot => {
+                const isLoaded = Boolean(slot.url);
+                if (isLoaded) loadedCount++;
+
+                const card = document.createElement('div');
+                card.className = `p-3.5 rounded-xl border transition flex flex-col justify-between gap-2.5 ${
+                    isLoaded
+                        ? 'bg-emerald-950/20 border-emerald-500/40'
+                        : 'bg-slate-950/70 border-slate-800'
+                }`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="text-xs font-bold text-white">${slot.label}</span>
+                            <span class="text-[10px] mono px-2 py-0.5 rounded font-semibold ${
+                                isLoaded
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-slate-800 text-slate-400'
+                            }">
+                                ${isLoaded ? `✓ ${slot.fileName || slot.shortCode}` : `Pendente (${slot.shortCode}.mp4)`}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-cyan-300/90 italic leading-snug mb-2">"${slot.scriptPtBr}"</p>
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-400 mono leading-relaxed line-clamp-2">
+                            ${slot.veoPrompt}
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="copyVeoPrompt('${slot.id}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-semibold border border-slate-700 transition">
+                                📋 Copiar Prompt Flow
+                            </button>
+                            ${isLoaded ? `
+                                <button type="button" onclick="testFlowSlot('${slot.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[11px] font-semibold border border-emerald-500/40 transition">
+                                    ▶ Testar
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        <label class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-[11px] font-semibold cursor-pointer transition">
+                            <span>📂 ${isLoaded ? 'Trocar Arquivo' : 'Subir MP4'}</span>
+                            <input type="file" accept="${slot.id === 'slot_idle' ? 'video/mp4,video/webm,image/*' : 'video/mp4,video/webm'}" class="hidden" onchange="handleSingleSlotUpload(event, '${slot.id}')" />
+                        </label>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+
+            const headerCount = document.getElementById('flowLoadedCount');
+            if (headerCount) headerCount.textContent = `${loadedCount}/${totalSlots}`;
+
+            const summaryBadge = document.getElementById('flowStudioSummaryBadge');
+            if (summaryBadge) summaryBadge.textContent = `${loadedCount} de ${totalSlots} arquivos carregados`;
+        }
+
+        // Lista de opções de diálogo/conduta sem numeração e com estilo único neutro
+        const NURSING_ACTION_OPTIONS = [
+            {
+                scenario: 'escuta_sonda',
+                category: 'anamnese',
+                text: '"Compreendo seu incômodo, Sr. Pedro. Pode me contar como foi colocada essa sonda?"'
+            },
+            {
+                scenario: 'dor_sintomas',
+                category: 'anamnese',
+                text: '"O senhor sente alguma dor, ardência na bexiga ou percebeu alteração na saída da urina pela bolsa?"'
+            },
+            {
+                scenario: 'inicio_vazamento',
+                category: 'anamnese',
+                text: '"Desde quando começou esse vazamento ao redor da sonda?"'
+            },
+            {
+                scenario: 'explicacao_previa',
+                category: 'anamnese',
+                text: '"Alguém da equipe chegou a explicar para o senhor o motivo desse vazamento estar acontecendo?"'
+            },
+            {
+                scenario: 'explicar_calibre',
+                category: 'conduta',
+                text: '"Sr. Pedro, como a passagem foi difícil, usaram uma sonda de calibre mais fino. Ela está funcionando bem, mas por ser fininha permite esse escape ao redor."'
+            },
+            {
+                scenario: 'trocar_sonda',
+                category: 'conduta',
+                text: '"Como está vazando na fralda, nós vamos precisar retirar e trocar essa sonda por uma mais grossa agora."'
+            },
+            {
+                scenario: 'julgamento',
+                category: 'conduta',
+                text: '"Isso é normal em hospital, o senhor não precisa reclamar de usar fralda, logo vai operar."'
+            },
+            {
+                scenario: 'encerramento',
+                category: 'conduta',
+                text: '"Fique tranquilo, não mexeremos na sonda e trocaremos a proteção sempre que precisar até sua cirurgia."'
+            }
+        ];
+
+        // Embaralha e renderiza os botões sem numeração e com cor 100% padronizada
+        function renderNeutralActionButtons(activeCategory = 'all') {
+            const container = document.getElementById('guidedButtonsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Embaralhamento Fisher-Yates para não permitir memorização da ordem
+            const shuffled = [...NURSING_ACTION_OPTIONS];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('data-cat', opt.category);
+                btn.onclick = () => triggerScenario(opt.scenario);
+
+                const isHidden = activeCategory !== 'all' && opt.category !== activeCategory;
+                // Estilo idêntico e neutro para todas as opções (sem dicas de certo/errado)
+                btn.className = `${isHidden ? 'hidden' : 'flex'} w-full text-left px-3 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 transition items-center justify-start group`;
+                btn.innerHTML = `<span class="text-xs text-slate-200 group-hover:text-white leading-snug">${opt.text}</span>`;
+                container.appendChild(btn);
+            });
+        }
+
+        // Rotina de Auto-Detecção de Pasta Local (idle.mp4, fala1.mp4 ... fala8.mp4)
+        function probeLocalMediaFile(relativePath) {
+            return new Promise((resolve) => {
+                const isImage = /\.(png|jpg|jpeg|webp)$/i.test(relativePath);
+                if (isImage) {
+                    const img = new Image();
+                    img.onload = () => resolve({ url: relativePath, type: 'image' });
+                    img.onerror = () => resolve(null);
+                    img.src = relativePath;
+                } else {
+                    const vid = document.createElement('video');
+                    vid.preload = 'metadata';
+                    let finished = false;
+                    const done = (res) => {
+                        if (!finished) {
+                            finished = true;
+                            vid.removeAttribute('src');
+                            vid.load();
+                            resolve(res);
+                        }
+                    };
+                    vid.onloadedmetadata = () => done({ url: relativePath, type: 'video' });
+                    vid.onerror = () => done(null);
+                    setTimeout(() => done(null), 1600);
+                    vid.src = relativePath;
+                }
+            });
+        }
+
+        async function autoDetectLocalFolderVideos() {
+            let detectedAny = false;
+            await Promise.all(
+                Object.values(flowSlots).map(async (slot) => {
+                    if (slot.source === 'manual' && slot.url) {
+                        detectedAny = true;
+                        return;
+                    }
+                    if (!slot.expectedFiles) return;
+                    for (const candidate of slot.expectedFiles) {
+                        const found = await probeLocalMediaFile(candidate);
+                        if (found) {
+                            slot.url = found.url;
+                            slot.type = found.type;
+                            slot.fileName = candidate;
+                            slot.source = 'auto';
+                            detectedAny = true;
+                            break;
+                        }
+                    }
+                })
+            );
+
+            renderFlowStudioSlots();
+            if (detectedAny) {
+                enableFlowRenderMode();
+            }
+        }
+
+        function handleSingleSlotUpload(event, slotKey) {
+            const file = event.target.files[0];
+            if (!file) return;
+            assignFileToSlot(slotKey, file);
+            renderFlowStudioSlots();
+        }
+
+        // Upload em lote inteligente: reconhece nomes como idle, keyframe, fala1..fala8, dor, calibre, trocar, etc.
+        function handleBulkFlowUpload(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                const name = file.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                if (name.includes('idle') || name.includes('keyframe') || name.includes('base') || file.type.startsWith('image/')) {
+                    assignFileToSlot('slot_idle', file);
+                } else if (name.includes('fala1') || name.includes('fala_1') || name.includes('abertura') || name.includes('fralda')) {
+                    assignFileToSlot('fala_inicial_1', file);
+                } else if (name.includes('fala2') || name.includes('fala_2') || name.includes('historico') || name.includes('retencao') || name.includes('camera')) {
+                    assignFileToSlot('fala_inicial_2', file);
+                } else if (name.includes('fala3') || name.includes('fala_3') || name.includes('dor') || name.includes('bolsinha')) {
+                    assignFileToSlot('dor_sintomas', file);
+                } else if (name.includes('fala4') || name.includes('fala_4') || name.includes('quando') || name.includes('inicio')) {
+                    assignFileToSlot('inicio_vazamento', file);
+                } else if (name.includes('fala5') || name.includes('fala_5') || name.includes('ninguem') || name.includes('constrangido') || name.includes('decepcionado')) {
+                    assignFileToSlot('explicacao_previa', file);
+                } else if (name.includes('fala6') || name.includes('fala_6') || name.includes('calibre') || name.includes('tranquilo')) {
+                    assignFileToSlot('explicar_calibre', file);
+                } else if (name.includes('fala7') || name.includes('fala_7') || name.includes('trocar') || name.includes('nervoso') || name.includes('recusa') || name.includes('jeito nenhum')) {
+                    assignFileToSlot('trocar_sonda', file);
+                } else if (name.includes('fala8') || name.includes('fala_8') || name.includes('obrigado') || name.includes('encerramento')) {
+                    assignFileToSlot('encerramento', file);
+                }
+            });
+
+            renderFlowStudioSlots();
+        }
+        function assignFileToSlot(slotKey, file) {
+            const slot = flowSlots[slotKey];
+            if (!slot || !file) return;
+
+            if (slot.url && slot.source === 'manual') {
+                URL.revokeObjectURL(slot.url);
+            }
+            slot.url = URL.createObjectURL(file);
+            slot.fileName = file.name;
+            slot.type = file.type.startsWith('image/') ? 'image' : 'video';
+            slot.source = 'manual';
+
+            // Ativa automaticamente o modo Flow quando o usuário sobe um arquivo
+            enableFlowRenderMode();
+
+            if (slotKey === 'slot_idle' && !simState.isSpeaking) {
+                returnToFlowIdleStage();
+            }
+        }
+
+        // Retorna suavemente para o vídeo de Loop Idle ou Keyframe após terminar de falar
+        function returnToFlowIdleStage() {
+            const videoEl = document.getElementById('flowVideoStage');
+            const imgEl = document.getElementById('flowKeyframeStage');
+            const badge = document.getElementById('flowClipStatusBadge');
+            const idleSlot = flowSlots.slot_idle;
+
+            stopLipSync();
+            simState.isSpeaking = false;
+
+            if (idleSlot.url) {
+                if (idleSlot.type === 'image') {
+                    videoEl.pause();
+                    videoEl.classList.add('hidden');
+                    imgEl.src = idleSlot.url;
+                    imgEl.classList.remove('hidden');
+                    badge.textContent = 'Flow Engine: Keyframe Base Ativa';
+                } else {
+                    imgEl.classList.add('hidden');
+                    videoEl.classList.remove('hidden');
+                    if (videoEl.getAttribute('src') !== idleSlot.url) {
+                        videoEl.src = idleSlot.url;
+                    }
+                    videoEl.loop = true;
+                    videoEl.muted = true;
+                    videoEl.play().catch(() => {});
+                    badge.textContent = 'Flow Engine: Loop Idle Silencioso';
+                }
+            } else {
+                badge.textContent = 'Flow Engine: Pausado no último frame (Suba o Slot 0 Idle se desejar)';
+            }
+        }
+
+        // Reproduz um clipe específico do Google Flow com Áudio Nativo em PT-BR
+        function playFlowClipWithNativeAudio(lineKey, onEndedCallback = null) {
+            const slot = flowSlots[lineKey];
+            const videoEl = document.getElementById('flowVideoStage');
+            const imgEl = document.getElementById('flowKeyframeStage');
+            const badge = document.getElementById('flowClipStatusBadge');
+            const spkInd = document.getElementById('speakingIndicator');
+            const spkLabel = document.getElementById('speakingSourceLabel');
+
+            // Verifica se existe o vídeo MP4 carregado para essa fala
+            if (slot && slot.url && slot.type === 'video') {
+                // Garante que o palco Flow está visível e cancela qualquer voz sintética do navegador
+                if (simState.renderMode !== 'flow') {
+                    enableFlowRenderMode();
+                }
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+
+                imgEl.classList.add('hidden');
+                videoEl.classList.remove('hidden');
+
+                simState.isSpeaking = true;
+                spkLabel.textContent = 'Áudio Nativo Flow/Veo (PT-BR)...';
+                spkInd.classList.remove('hidden');
+                spkInd.classList.add('flex');
+                badge.textContent = `▶ Reproduzindo: ${slot.shortCode.toUpperCase()} (Áudio Nativo)`;
+
+                videoEl.loop = false;
+                videoEl.muted = !simState.audioEnabled;
+                videoEl.src = slot.url;
+
+                videoEl.onended = () => {
+                    videoEl.onended = null;
+                    returnToFlowIdleStage();
+                    if (typeof onEndedCallback === 'function') {
+                        onEndedCallback();
+                    }
+                };
+
+                videoEl.onerror = () => {
+                    videoEl.onended = null;
+                    returnToFlowIdleStage();
+                    if (typeof onEndedCallback === 'function') {
+                        onEndedCallback();
+                    }
+                };
+
+                videoEl.play().catch(() => {
+                    // Fallback caso políticas de autoplay bloqueiem
+                    speakBrowserTTSFallback(slot.scriptPtBr, onEndedCallback);
+                });
+                return true;
+            }
+
+            return false;
+        }
+
+        function testFlowSlot(slotKey) {
+            closeFlowStudio();
+            if (slotKey === 'slot_idle') {
+                enableFlowRenderMode();
+                returnToFlowIdleStage();
+            } else {
+                triggerPatientResponse(slotKey);
+            }
+        }
+
+        // ============================================================================
+        // 4. MOTOR DE EXPRESSÕES FACIAIS CGI (SVG MORPHING & ANIMAÇÕES)
+        // ============================================================================
+        const emotionConfigs = {
+            neutro: {
+                badgeText: 'Calmo / Neutro',
+                badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-500/30',
+                dotClass: 'bg-slate-300',
+                browL: 'M 342 204 Q 364 196 385 204',
+                browR: 'M 415 204 Q 436 196 458 204',
+                mouth: 'M 376 297 Q 400 297 424 297',
+                scleraRy: '9.5',
+                pupilTransform: 'translate(0, 0)',
+                headClass: 'cgi-head-idle',
+                handsTransform: 'translate(0, 0)'
+            },
+            frustrado: {
+                badgeText: 'Frustrado (Leve)',
+                badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                dotClass: 'bg-amber-400',
+                browL: 'M 342 200 Q 364 204 385 209',
+                browR: 'M 415 209 Q 436 204 458 200',
+                mouth: 'M 376 301 Q 400 291 424 301',
+                scleraRy: '8.5',
+                pupilTransform: 'translate(0, 2)',
+                headClass: 'cgi-head-idle',
+                handsTransform: 'translate(0, -3)'
+            },
+            curioso: {
+                badgeText: 'Curioso / Atento',
+                badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+                dotClass: 'bg-cyan-400',
+                browL: 'M 342 198 Q 364 188 385 198',
+                browR: 'M 415 198 Q 436 188 458 198',
+                mouth: 'M 382 298 Q 400 301 418 298',
+                scleraRy: '10.8',
+                pupilTransform: 'translate(0, -1)',
+                headClass: 'cgi-head-idle',
+                handsTransform: 'translate(0, 0)'
+            },
+            decepcionado: {
+                badgeText: 'Decepcionado / Constrangido',
+                badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+                dotClass: 'bg-indigo-400',
+                browL: 'M 342 208 Q 364 202 385 198',
+                browR: 'M 415 198 Q 436 202 458 208',
+                mouth: 'M 376 303 Q 400 292 424 303',
+                scleraRy: '7.8',
+                pupilTransform: 'translate(-1, 3)',
+                headClass: 'cgi-head-idle',
+                handsTransform: 'translate(0, 2)'
+            },
+            aliviado: {
+                badgeText: 'Aliviado / Grato',
+                badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                dotClass: 'bg-emerald-400',
+                browL: 'M 342 202 Q 364 193 385 202',
+                browR: 'M 415 202 Q 436 193 458 202',
+                mouth: 'M 373 294 Q 400 308 427 294',
+                scleraRy: '9.5',
+                pupilTransform: 'translate(0, 0)',
+                headClass: 'cgi-head-idle',
+                handsTransform: 'translate(0, 0)'
+            },
+            nervoso: {
+                badgeText: 'Nervoso (Recusa)',
+                badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+                dotClass: 'bg-rose-500',
+                browL: 'M 342 195 Q 364 205 385 212',
+                browR: 'M 415 212 Q 436 205 458 195',
+                mouth: 'M 374 304 Q 400 288 426 304',
+                scleraRy: '11.5',
+                pupilTransform: 'translate(0, 0)',
+                headClass: 'cgi-head-nervoso',
+                handsTransform: 'translate(0, -14)'
+            }
+        };
+
+        function setActorEmotion(emotionKey, isManualTest = false) {
+            const cfg = emotionConfigs[emotionKey] || emotionConfigs.neutro;
+            simState.emotion = emotionKey;
+
+            const browL = document.getElementById('eyebrowLeft');
+            const browR = document.getElementById('eyebrowRight');
+            const mouthLine = document.getElementById('mouthLine');
+            const scleraL = document.getElementById('scleraL');
+            const scleraR = document.getElementById('scleraR');
+            const pupilL = document.getElementById('pupilL');
+            const pupilR = document.getElementById('pupilR');
+            const head = document.getElementById('patientHead');
+            const hands = document.getElementById('patientHands');
+            const badge = document.getElementById('emotionBadge');
+
+            if (browL) browL.setAttribute('d', cfg.browL);
+            if (browR) browR.setAttribute('d', cfg.browR);
+            if (mouthLine) mouthLine.setAttribute('d', cfg.mouth);
+            if (scleraL) scleraL.setAttribute('ry', cfg.scleraRy);
+            if (scleraR) scleraR.setAttribute('ry', cfg.scleraRy);
+            if (pupilL) pupilL.setAttribute('transform', cfg.pupilTransform);
+            if (pupilR) pupilR.setAttribute('transform', cfg.pupilTransform);
+            if (head) head.setAttribute('class', cfg.headClass);
+            if (hands) hands.setAttribute('transform', cfg.handsTransform);
+
+            if (badge) {
+                badge.className = `inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border ${cfg.badgeClass}`;
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full ${cfg.dotClass} animate-pulse"></span>${cfg.badgeText}`;
+            }
+
+            // Se clicou nos botões de teste rápido e tem vídeo correspondente no Flow, testa o clipe
+            if (isManualTest && simState.renderMode === 'flow') {
+                const mapEmotionToSlot = {
+                    neutro: 'dor_sintomas',
+                    frustrado: 'fala_inicial_1',
+                    curioso: 'explicar_calibre',
+                    decepcionado: 'explicacao_previa',
+                    aliviado: 'encerramento',
+                    nervoso: 'trocar_sonda'
+                };
+                const targetSlot = mapEmotionToSlot[emotionKey];
+                if (targetSlot && flowSlots[targetSlot] && flowSlots[targetSlot].url) {
+                    playFlowClipWithNativeAudio(targetSlot);
+                }
+            }
+        }
+
+        function startBlinkLoop() {
+            const lidL = document.getElementById('blinkLidL');
+            const lidR = document.getElementById('blinkLidR');
+            setInterval(() => {
+                if (!lidL || !lidR) return;
+                lidL.setAttribute('opacity', '1');
+                lidR.setAttribute('opacity', '1');
+                setTimeout(() => {
+                    lidL.setAttribute('opacity', '0');
+                    lidR.setAttribute('opacity', '0');
+                }, 140);
+            }, 3800);
+        }
+
+        function startLipSync() {
+            stopLipSync();
+            simState.isSpeaking = true;
+            const mouthOpen = document.getElementById('mouthOpen');
+            const mouthTongue = document.getElementById('mouthTongue');
+            const spkInd = document.getElementById('speakingIndicator');
+
+            if (spkInd) {
+                spkInd.classList.remove('hidden');
+                spkInd.classList.add('flex');
+            }
+            if (mouthOpen) mouthOpen.setAttribute('opacity', '1');
+            if (mouthTongue) mouthTongue.setAttribute('opacity', '0.85');
+
+            simState.lipSyncInterval = setInterval(() => {
+                const ry = (2 + Math.random() * 6.5).toFixed(1);
+                const rx = (11 + Math.random() * 4).toFixed(1);
+                if (mouthOpen) {
+                    mouthOpen.setAttribute('ry', ry);
+                    mouthOpen.setAttribute('rx', rx);
+                }
+            }, 110);
+        }
+
+        function stopLipSync() {
+            if (simState.lipSyncInterval) {
+                clearInterval(simState.lipSyncInterval);
+                simState.lipSyncInterval = null;
+            }
+            simState.isSpeaking = false;
+            const mouthOpen = document.getElementById('mouthOpen');
+            const mouthTongue = document.getElementById('mouthTongue');
+            const spkInd = document.getElementById('speakingIndicator');
+
+            if (mouthOpen) {
+                mouthOpen.setAttribute('opacity', '0');
+                mouthOpen.setAttribute('ry', '1');
+            }
+            if (mouthTongue) mouthTongue.setAttribute('opacity', '0');
+            if (spkInd) {
+                spkInd.classList.add('hidden');
+                spkInd.classList.remove('flex');
+            }
+        }
+
+        function filterPrompts(category) {
+            const buttons = document.querySelectorAll('#guidedButtonsContainer button');
+            buttons.forEach(btn => {
+                if (category === 'all' || btn.getAttribute('data-cat') === category) {
+                    btn.classList.remove('hidden');
+                    btn.classList.add('flex');
+                } else {
+                    btn.classList.add('hidden');
+                    btn.classList.remove('flex');
+                }
+            });
+
+            ['all', 'anamnese', 'conduta'].forEach(tab => {
+                const tabEl = document.getElementById(`tab-${tab}`);
+                if (!tabEl) return;
+                if (tab === category) {
+                    tabEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                } else {
+                    tabEl.className = 'px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 hover:text-slate-200';
+                }
+            });
+        }
+
+        // ============================================================================
+        // 5. SÍNTESE DE VOZ EM PORTUGUÊS BRASILEIRO (FALLBACK WEB SPEECH API)
+        // ============================================================================
+        let selectedVoice = null;
+
+        function initVoices() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = window.speechSynthesis.getVoices();
+            selectedVoice = voices.find(v => v.lang.includes('pt-BR') && /daniel|antonio|felipe|google|male/i.test(v.name))
+                         || voices.find(v => v.lang.includes('pt-BR'))
+                         || voices.find(v => v.lang.includes('pt'));
+        }
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = initVoices;
+            initVoices();
+        }
+
+        function speakBrowserTTSFallback(text, onEndedCallback = null) {
+            simState.lastSpokenText = text;
+            const spkLabel = document.getElementById('speakingSourceLabel');
+            if (spkLabel) spkLabel.textContent = 'Sr. Pedro falando (Voz Sintética)...';
+
+            if (!simState.audioEnabled || !('speechSynthesis' in window)) {
+                startLipSync();
+                const duration = Math.min(Math.max(text.length * 52, 1800), 6000);
+                setTimeout(() => {
+                    stopLipSync();
+                    if (typeof onEndedCallback === 'function') onEndedCallback();
+                }, duration);
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'pt-BR';
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.pitch = 0.82;
+            utterance.rate = 0.94;
+
+            utterance.onstart = () => startLipSync();
+            utterance.onend = () => {
+                stopLipSync();
+                if (typeof onEndedCallback === 'function') onEndedCallback();
+            };
+            utterance.onerror = () => {
+                stopLipSync();
+                if (typeof onEndedCallback === 'function') onEndedCallback();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function repeatLastSpeech() {
+            if (simState.lastSpokenKey) {
+                const playedFlow = playFlowClipWithNativeAudio(simState.lastSpokenKey);
+                if (!playedFlow && simState.lastSpokenText) {
+                    speakBrowserTTSFallback(simState.lastSpokenText);
+                }
+            } else if (simState.lastSpokenText) {
+                speakBrowserTTSFallback(simState.lastSpokenText);
+            }
+        }
+
+        function toggleAudio() {
+            simState.audioEnabled = !simState.audioEnabled;
+            const txt = document.getElementById('audioStatusText');
+            const btn = document.getElementById('btnToggleAudio');
+            const videoEl = document.getElementById('flowVideoStage');
+
+            if (simState.audioEnabled) {
+                txt.textContent = 'Voz CGI: Ativa';
+                btn.classList.replace('text-slate-400', 'text-cyan-300');
+                if (videoEl && simState.isSpeaking) videoEl.muted = false;
+            } else {
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                if (videoEl) videoEl.muted = true;
+                stopLipSync();
+                txt.textContent = 'Voz CGI: Muda';
+                btn.classList.replace('text-cyan-300', 'text-slate-400');
+            }
+        }
+
+        // ============================================================================
+        // 5. LÓGICA DO SIMULADOR E INTERAÇÕES CLÍNICAS
+        // ============================================================================
+        function updateMeters(trustDelta, anxietyDelta) {
+            simState.trust = Math.max(0, Math.min(100, simState.trust + trustDelta));
+            simState.anxiety = Math.max(0, Math.min(100, simState.anxiety + anxietyDelta));
+
+            document.getElementById('trustValue').textContent = `${simState.trust}%`;
+            document.getElementById('trustBar').style.width = `${simState.trust}%`;
+
+            document.getElementById('anxietyValue').textContent = `${simState.anxiety}%`;
+            document.getElementById('anxietyBar').style.width = `${simState.anxiety}%`;
+        }
+
+        function markChecklistUI(itemId) {
+            const el = document.getElementById(itemId);
+            if (!el) return;
+            el.classList.remove('text-slate-400');
+            el.classList.add('text-emerald-400', 'font-semibold');
+            const badge = el.querySelector('span:first-child');
+            if (badge) {
+                badge.className = 'w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 flex items-center justify-center text-[10px]';
+                badge.textContent = '✓';
+            }
+        }
+
+        function appendChatMessage(sender, text, emotionTag = null) {
+            const chatLog = document.getElementById('chatLog');
+            const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const wrapper = document.createElement('div');
+            if (sender === 'nurse') {
+                wrapper.className = 'flex flex-col items-end';
+                wrapper.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="text-[10px] text-slate-400 mono">${timeStr}</span>
+                        <span class="text-[11px] font-bold text-cyan-400">Estudante de Enfermagem</span>
+                    </div>
+                    <div class="bg-cyan-950/60 border border-cyan-700/50 text-slate-100 rounded-2xl rounded-tr-none px-3.5 py-2.5 text-xs max-w-[90%] leading-relaxed shadow">
+                        ${text}
+                    </div>
+                `;
+            } else {
+                wrapper.className = 'flex flex-col items-start';
+                wrapper.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="text-[11px] font-bold text-amber-300">Sr. Pedro</span>
+                        ${emotionTag ? `<span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">${emotionTag}</span>` : ''}
+                        <span class="text-[10px] text-slate-400 mono">${timeStr}</span>
+                    </div>
+                    <div class="bg-slate-800/90 border border-slate-700 text-slate-100 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs max-w-[92%] leading-relaxed shadow">
+                        "${text}"
+                    </div>
+                `;
+            }
+
+            chatLog.appendChild(wrapper);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function triggerPatientResponse(lineKey, onEndedCallback = null) {
+            const line = scriptLines[lineKey];
+            if (!line) return;
+
+            simState.lastSpokenKey = lineKey;
+            simState.lastSpokenText = line.text;
+
+            setActorEmotion(line.emotion);
+            document.getElementById('subtitleEmotionTag').textContent = line.subtitleTag;
+            document.getElementById('currentSpeechBubble').textContent = `"${line.text}"`;
+
+            appendChatMessage('patient', line.text, emotionConfigs[line.emotion].badgeText);
+
+            // Prioridade 1: Se o vídeo nativo do Google Flow estiver carregado para esta fala, toca o MP4 com áudio nativo!
+            const playedNativeFlow = playFlowClipWithNativeAudio(lineKey, onEndedCallback);
+
+            // Prioridade 2: Se não houver vídeo carregado para esta fala, usa o fallback de voz pt-BR
+            if (!playedNativeFlow) {
+                speakBrowserTTSFallback(line.text, onEndedCallback);
+            }
+        }
+
+        // Início do Atendimento: Reproduz Fala 1 e encadeia automaticamente (ou via botão) a Fala 2
+        function startEncounter() {
+            simState.started = true;
+            simState.checklist.welcome = true;
+            markChecklistUI('chk-welcome');
+
+            const container = document.getElementById('startActionContainer');
+            container.innerHTML = `
+                <button onclick="triggerScenario('escuta_sonda')" class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-2 transition">
+                    <span>Ouvir Fala 2 (Relato da passagem da sonda com uretroscopia) →</span>
+                </button>
+            `;
+
+            document.getElementById('chatLog').innerHTML = '';
+
+            // Dispara Fala 1 e, se Fala 2 também estiver carregada no Flow, encadeia suavemente após terminar a Fala 1
+            triggerPatientResponse('fala_inicial_1', () => {
+                if (flowSlots.fala_inicial_2.url) {
+                    setTimeout(() => {
+                        if (simState.turns === 0) {
+                            triggerScenario('escuta_sonda');
+                        }
+                    }, 550);
+                }
+            });
+        }
+
+        // Inspeção Física da Sonda
+        function inspectCatheter() {
+            simState.checklist.inspectedCVD = true;
+            const res = document.getElementById('inspectionResult');
+            res.classList.remove('hidden');
+            updateMeters(5, -5);
+        }
+
+        // Execução dos Cenários do Roteiro
+        function triggerScenario(scenarioKey, customNurseText = null) {
+            if (!simState.started) {
+                startEncounter();
+                if (scenarioKey === 'escuta_sonda') return;
+            }
+
+            simState.turns++;
+            document.getElementById('turnCounter').textContent = `Interações: ${simState.turns}`;
+            document.getElementById('safetyAlertBanner').classList.add('hidden');
+
+            const defaultNurseTexts = {
+                escuta_sonda: "Compreendo seu incômodo com a fralda, Sr. Pedro. Pode me contar como foi colocada essa sonda?",
+                dor_sintomas: "O senhor está sentindo alguma dor, ardência ou percebeu se a urina está saindo pela bolsa coletora?",
+                inicio_vazamento: "Desde quando começou esse vazamento de urina ao redor da sonda?",
+                explicacao_previa: "Alguém chegou a explicar para o senhor o motivo desse vazamento estar acontecendo?",
+                explicar_calibre: "Sr. Pedro, como a passagem foi difícil e precisou de câmera, o urologista colocou uma sonda de calibre mais fino (12 Fr). Ela está drenando bem na bolsa, mas por ser fininha pode escapar um pouco ao redor. Não é um erro.",
+                trocar_sonda: "Como está escapando urina na fralda, nós vamos precisar retirar e trocar essa sonda agora.",
+                julgamento: "Isso é normal, o senhor não precisa ficar reclamando de usar fralda no hospital.",
+                encerramento: "Fique tranquilo, Sr. Pedro. Sua sonda está funcionando certinho, ninguém vai mexer nela e vamos manter o senhor limpo e confortável até a prostatectomia."
+            };
+
+            const nurseSpeech = customNurseText || defaultNurseTexts[scenarioKey];
+            if (nurseSpeech) {
+                appendChatMessage('nurse', nurseSpeech);
+            }
+
+            // Esconde botão de continuação inicial se já clicou
+            if (scenarioKey === 'escuta_sonda') {
+                document.getElementById('startActionContainer').innerHTML = '';
+                triggerPatientResponse('fala_inicial_2');
+                updateMeters(10, -5);
+                return;
+            }
+
+            if (scenarioKey === 'dor_sintomas') {
+                simState.checklist.askedPain = true;
+                markChecklistUI('chk-pain');
+                updateMeters(10, -5);
+                triggerPatientResponse('dor_sintomas');
+            } 
+            else if (scenarioKey === 'inicio_vazamento') {
+                simState.checklist.askedOnset = true;
+                markChecklistUI('chk-onset');
+                updateMeters(8, 0);
+                triggerPatientResponse('inicio_vazamento');
+            } 
+            else if (scenarioKey === 'explicacao_previa') {
+                simState.checklist.askedPrevInfo = true;
+                markChecklistUI('chk-previnfo');
+                updateMeters(12, -5);
+                triggerPatientResponse('explicacao_previa');
+            } 
+            else if (scenarioKey === 'explicar_calibre') {
+                simState.checklist.explainedCaliber = true;
+                markChecklistUI('chk-explain');
+                updateMeters(30, -35);
+                triggerPatientResponse('explicar_calibre');
+            } 
+            else if (scenarioKey === 'trocar_sonda') {
+                simState.checklist.suggestedChangeError = true;
+                updateMeters(-40, 45);
+                const alertBanner = document.getElementById('safetyAlertBanner');
+                alertBanner.classList.remove('hidden');
+                alertBanner.classList.add('flex');
+                triggerPatientResponse('trocar_sonda');
+            } 
+            else if (scenarioKey === 'julgamento') {
+                simState.checklist.judgmentError = true;
+                updateMeters(-25, 25);
+                triggerPatientResponse('julgamento');
+            } 
+            else if (scenarioKey === 'encerramento') {
+                simState.checklist.closedProperly = true;
+                markChecklistUI('chk-close');
+                updateMeters(15, -20);
+                triggerPatientResponse('encerramento');
+            }
+        }
+
+        // ============================================================================
+        // 6. MOTOR NLP LOCAL PARA PERGUNTAS LIVRES (TEXTO OU VOZ EM PORTUGUÊS)
+        // ============================================================================
+        function handleFreeTextSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('freeTextInput');
+            const rawText = input.value.trim();
+            if (!rawText) return;
+            input.value = '';
+
+            processNaturalLanguageInput(rawText);
+        }
+
+        function processNaturalLanguageInput(text) {
+            const norm = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            // 1. Verifica se falou em trocar / tirar / repassar a sonda (Armadilha crítica)
+            if (/(trocar|tirar|remover|repassar|substituir|passar outra).*(sonda|cateter)/.test(norm) || /(vamos|precisar|ter que) trocar/.test(norm)) {
+                triggerScenario('trocar_sonda', text);
+                return;
+            }
+
+            // 2. Verifica se explicou sobre o calibre pequeno/fino ou espasmo
+            if (/(calibre|fina|fininha|pequena|pequeno|numero|espasmo|ao redor|extravasamento)/.test(norm)) {
+                triggerScenario('explicar_calibre', text);
+                return;
+            }
+
+            // 3. Verifica pergunta sobre dor ou sintomas urinários / bolsa
+            if (/(dor|doi|ardencia|arde|sangue|sintoma|bolsa|bolsinha|urina|xixi)/.test(norm)) {
+                triggerScenario('dor_sintomas', text);
+                return;
+            }
+
+            // 4. Verifica pergunta sobre quando começou o vazamento
+            if (/(quando comecou|ha quanto tempo|desde quando|inicio|sempre vazou)/.test(norm)) {
+                triggerScenario('inicio_vazamento', text);
+                return;
+            }
+
+            // 5. Verifica pergunta sobre orientação/explicação prévia
+            if (/(alguem explicou|explicaram|orientaram|falou o motivo|disseram por que|medico explicou)/.test(norm)) {
+                triggerScenario('explicacao_previa', text);
+                return;
+            }
+
+            // 6. Verifica agradecimento / tranquilização / encerramento
+            if (/(fique tranquilo|nao vamos mexer|cuidar do senhor|ate a cirurgia|disponha|estamos aqui)/.test(norm)) {
+                triggerScenario('encerramento', text);
+                return;
+            }
+
+            // 7. Padrão inicial / história da sonda
+            triggerScenario('escuta_sonda', text);
+        }
+
+        // Reconhecimento de Voz (Microfone do Estudante)
+        function toggleSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById('freeTextInput').placeholder = "Navegador sem suporte a microfone. Digite aqui...";
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const btnMic = document.getElementById('btnMic');
+            btnMic.classList.add('bg-rose-600', 'text-white', 'animate-pulse');
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('freeTextInput').value = transcript;
+                processNaturalLanguageInput(transcript);
+            };
+
+            recognition.onend = () => {
+                btnMic.classList.remove('bg-rose-600', 'text-white', 'animate-pulse');
+            };
+
+            recognition.onerror = () => {
+                btnMic.classList.remove('bg-rose-600', 'text-white', 'animate-pulse');
+            };
+
+            recognition.start();
+        }
+
+        // ============================================================================
+        // 7. DEBRIEFING E CHECKLIST OSCE
+        // ============================================================================
+        function openDebriefing() {
+            const c = simState.checklist;
+            let score = 0;
+
+            const items = [
+                {
+                    title: '1. Acolhimento e Escuta Qualificada Inicial',
+                    done: c.welcome,
+                    points: 15,
+                    feedbackOk: 'Excelente! Você iniciou o atendimento acolhendo a queixa espontânea do Sr. Pedro sobre o desconforto e o uso da fralda.',
+                    feedbackMiss: 'Faltou iniciar a escuta acolhedora da queixa principal do paciente.'
+                },
+                {
+                    title: '2. Investigação de Dor e Permeabilidade Urinária',
+                    done: c.askedPain,
+                    points: 15,
+                    feedbackOk: 'Correto! Investigou dor e confirmou que a urina estava drenando normalmente pela bolsa coletora.',
+                    feedbackMiss: 'Importante questionar se há dor suprapúbica ou obstrução da drenagem para descartar retenção aguda por dobra/coágulo.'
+                },
+                {
+                    title: '3. Investigação Cronológica e Comunicação Prévia',
+                    done: c.askedOnset && c.askedPrevInfo,
+                    points: 15,
+                    feedbackOk: 'Muito bem! Investigou quando o vazamento começou (desde a inserção) e identificou que ninguém havia orientado o paciente antes.',
+                    feedbackMiss: 'Explore sempre desde quando ocorre o vazamento e o que o paciente já compreende sobre sua condição.'
+                },
+                {
+                    title: '4. Exame Físico e Inspeção do Sistema de CVD',
+                    done: c.inspectedCVD,
+                    points: 15,
+                    feedbackOk: 'Realizou a inspeção física do CVD, identificando sonda Foley 12 Fr pérvia com urina límpida.',
+                    feedbackMiss: 'Lembre-se de clicar em "Inspecionar Sonda (CVD)" no prontuário para checar o calibre (12 Fr) e o aspecto da urina.'
+                },
+                {
+                    title: '5. Educação em Saúde: Explicação Técnica Acessível (Calibre x Extravasamento)',
+                    done: c.explainedCaliber,
+                    points: 25,
+                    feedbackOk: 'Ponto-chave atingido! Explicou que o calibre reduzido da sonda (devido à passagem difícil com uretroscopia) permite escape pericateter sem significar erro ou negligência, gerando alívio imediato ao paciente.',
+                    feedbackMiss: 'Crucial: o paciente achava que havia erro ou negligência. Explicar a relação entre o calibre fino da sonda e o escape tranquiliza o paciente.'
+                },
+                {
+                    title: '6. Segurança do Paciente (Não propor troca iatrogênica do CVD)',
+                    done: !c.suggestedChangeError,
+                    points: 15,
+                    feedbackOk: 'Conduta segura! Você preservou o cateter inserido por via endoscópica difícil até a realização da prostatectomia.',
+                    feedbackMiss: 'ALERTA CRÍTICO: Você sugeriu trocar/retirar a sonda. Em cateterismo difícil guiado por uretroscopia, retirar a sonda sem indicação urológica causa intenso sofrimento e risco de perda da via uretral.'
+                }
+            ];
+
+            const container = document.getElementById('debriefItemsContainer');
+            container.innerHTML = '';
+
+            items.forEach(item => {
+                if (item.done) score += item.points;
+                const row = document.createElement('div');
+                row.className = `p-3.5 rounded-xl border ${item.done ? 'bg-emerald-950/25 border-emerald-500/40' : 'bg-rose-950/25 border-rose-500/40'}`;
+                row.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-bold ${item.done ? 'text-emerald-300' : 'text-rose-300'}">${item.title}</span>
+                        <span class="mono font-bold px-2 py-0.5 rounded text-[11px] ${item.done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">
+                            ${item.done ? `+${item.points} pts` : '0 pts'}
+                        </span>
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">${item.done ? item.feedbackOk : item.feedbackMiss}</p>
+                `;
+                container.appendChild(row);
+            });
+
+            if (c.judgmentError) {
+                score = Math.max(0, score - 15);
+            }
+
+            document.getElementById('finalScoreText').textContent = `${score}%`;
+            document.getElementById('debriefModal').classList.remove('hidden');
+        }
+
+        function closeDebriefing() {
+            document.getElementById('debriefModal').classList.add('hidden');
+        }
+
+        // Limpa completamente o cache de respostas, armazenamento local, histórico e estado clínico
+        function clearAnswerCacheAndState() {
+            try {
+                // Remove qualquer chave persistida em localStorage ou sessionStorage
+                if (window.localStorage) {
+                    Object.keys(localStorage).forEach(k => {
+                        if (/osce|pedro|simulador|nurse|chat|checklist/i.test(k)) {
+                            localStorage.removeItem(k);
+                        }
+                    });
+                }
+                if (window.sessionStorage) {
+                    sessionStorage.clear();
+                }
+            } catch (e) {}
+
+            // Cancela síntese de voz e reseta vídeo ativo para o estado silencioso (Idle)
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            const videoEl = document.getElementById('flowVideoStage');
+            if (videoEl) {
+                videoEl.onended = null;
+                returnToFlowIdleStage();
+            }
+            stopLipSync();
+
+            // Reseta variáveis de estado da simulação
+            simState.started = false;
+            simState.trust = 50;
+            simState.anxiety = 55;
+            simState.turns = 0;
+            simState.lastSpokenKey = null;
+            simState.lastSpokenText = '';
+            Object.keys(simState.checklist).forEach(k => {
+                simState.checklist[k] = false;
+            });
+
+            // Limpa campo de texto livre
+            const freeInput = document.getElementById('freeTextInput');
+            if (freeInput) freeInput.value = '';
+
+            // Reseta medidores e expressão inicial
+            updateMeters(0, 0);
+            setActorEmotion('frustrado');
+
+            const turnCounter = document.getElementById('turnCounter');
+            if (turnCounter) turnCounter.textContent = 'Interações: 0';
+
+            const inspectionRes = document.getElementById('inspectionResult');
+            if (inspectionRes) inspectionRes.classList.add('hidden');
+
+            const safetyBanner = document.getElementById('safetyAlertBanner');
+            if (safetyBanner) {
+                safetyBanner.classList.add('hidden');
+                safetyBanner.classList.remove('flex');
+            }
+
+            const debriefModal = document.getElementById('debriefModal');
+            if (debriefModal) debriefModal.classList.add('hidden');
+
+            const debriefContainer = document.getElementById('debriefItemsContainer');
+            if (debriefContainer) debriefContainer.innerHTML = '';
+
+            // Reseta checklist visual de progresso
+            ['chk-welcome', 'chk-pain', 'chk-onset', 'chk-previnfo', 'chk-explain', 'chk-close'].forEach((id, idx) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.className = 'flex items-center gap-2 text-slate-400';
+                const badge = el.querySelector('span:first-child');
+                if (badge) {
+                    badge.className = 'w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[10px]';
+                    badge.textContent = idx + 1;
+                }
+            });
+
+            // Reseta legenda e botão de início
+            const subtitleTag = document.getElementById('subtitleEmotionTag');
+            if (subtitleTag) subtitleTag.textContent = 'Postura relaxada, sentado no leito';
+
+            const speechBubble = document.getElementById('currentSpeechBubble');
+            if (speechBubble) {
+                speechBubble.innerHTML = `"Clique em <strong class="text-cyan-400">Iniciar Atendimento</strong> abaixo para entrar no quarto e ouvir o Sr. Pedro."`;
+            }
+
+            const startContainer = document.getElementById('startActionContainer');
+            if (startContainer) {
+                startContainer.innerHTML = `
+                    <button id="btnStartEncounter" onclick="startEncounter()" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.99]">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Iniciar Atendimento (Fala 1 + Fala 2 em Sequência)</span>
+                    </button>
+                `;
+            }
+
+            // Limpa histórico de transcrição do chat
+            const chatLog = document.getElementById('chatLog');
+            if (chatLog) {
+                chatLog.innerHTML = `
+                    <div class="text-center py-6 px-4 text-xs text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                        <p class="font-semibold text-slate-300 mb-1">Estação Prática de Enfermagem</p>
+                        <p>Inicie o atendimento para ouvir o relato espontâneo do Sr. Pedro. Depois, utilize os botões de conduta abaixo ou digite/fale livremente.</p>
+                    </div>
+                `;
+            }
+
+            // Reembaralha os botões de conduta e volta a aba para "Todas"
+            renderNeutralActionButtons('all');
+            filterPrompts('all');
+        }
+
+        function resetSimulation() {
+            clearAnswerCacheAndState();
+        }
+
+        // Inicializa animações, limpa o cache de respostas e auto-detecta vídeos locais ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            startBlinkLoop();
+            clearAnswerCacheAndState();
+            renderFlowStudioSlots();
+            autoDetectLocalFolderVideos();
+        });
+
+        // Garante limpeza de cache também se o navegador restaurar a página pelo botão Voltar (bfcache)
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                clearAnswerCacheAndState();
+            }
+        });
+    </script>
+</body>
+</html>
